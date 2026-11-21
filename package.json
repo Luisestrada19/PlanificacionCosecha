@@ -5,7 +5,7 @@
   "scripts": {
     "start": "ng serve --host 0.0.0.0",
     "build": "ng build",
-    "build:pages": "ng build --base-href /harvest-planner/"
+    "build:pages": "ng build --base-href /PlanificacionCosecha/"
   },
   "dependencies": {
     "@angular/animations": "^20.0.0",

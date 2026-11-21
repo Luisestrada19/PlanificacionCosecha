@@ -17,7 +17,7 @@ Abrir http://localhost:4200
 - En el repositorio, ve a **Settings → Pages** y selecciona **GitHub Actions** como origen.
 - Al hacer push a `main`, el workflow compila y publica la aplicación automáticamente.
 - Para probar el build de Pages localmente, ejecuta `npm run build:pages`. Genera los archivos en `dist/harvest-planner/browser`.
-- La URL del sitio será https://luisestrada19.github.io/harvest-planner/.
+- La URL del sitio será https://luisestrada19.github.io/PlanificacionCosecha/.
 
 ## Funcionalidades
 - Importación múltiple GeoJSON por selector o drag & drop.
