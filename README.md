@@ -22,12 +22,12 @@ Abrir http://localhost:4200
 ## Mapas compartidos con Supabase
 1. Ejecuta una sola vez `supabase/migrations/20261120220000_shared_fundos.sql` en el SQL Editor del proyecto.
 2. Ejecuta `supabase/migrations/20261120224500_managed_users.sql`. Esta migración configura perfiles y RLS; no escribe directamente en `auth.users`.
-3. Despliega `supabase/functions/create-team-user` como Edge Function. Supabase agrega automáticamente las claves `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`.
+3. Con el proyecto vinculado en Supabase CLI, despliega las funciones con `supabase functions deploy create-team-user` y `supabase functions deploy update-team-user`. Supabase agrega automáticamente las claves `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`.
 4. En Supabase **Authentication → URL Configuration**, configura la URL de GitHub Pages como **Site URL** y como URL de retorno permitida.
 5. `src/app/core/config/supabase.config.ts` contiene la URL y la clave pública `publishable`. Esta clave se incluye en el navegador; nunca pongas una clave `service_role` en la aplicación.
 
 ## Roles
-- **Administrador:** crea usuarios, carga versiones de GeoJSON, pinta lotes, consulta asignaciones, exporta y administra el equipo.
+- **Administrador:** crea y edita usuarios, asigna contraseñas temporales, carga versiones de GeoJSON, pinta lotes, consulta asignaciones, exporta y administra el equipo.
 - **Supervisor:** consulta los mapas actualizados, pinta lotes y usa las exportaciones disponibles, pero no puede importar ni subir GeoJSON ni administrar usuarios.
 
 El acceso usa correo y contraseña creados por el administrador. El usuario inicial es `admin@agbsmart.com` con la contraseña temporal `Cosecha2027`; cámbiala desde **Cambiar contraseña** al iniciar sesión.

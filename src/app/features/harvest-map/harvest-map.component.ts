@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as L from 'leaflet';
 import { toPng } from 'html-to-image';
-import { AuthService, AppProfile } from '../../core/auth/auth.service';
+import { AuthService, AppProfile, AppRole } from '../../core/auth/auth.service';
 import { HarvestPlanRepository } from '../../data/repositories/harvest-plan.repository';
 import { GeoJsonParserService } from '../../data/services/geojson-parser.service';
 import { Fundo, HarvestLot, LotAssignment, SupervisorSummary } from '../../domain/harvest.models';
@@ -282,7 +282,10 @@ import { Fundo, HarvestLot, LotAssignment, SupervisorSummary } from '../../domai
               <div class="rounded-xl border border-slate-800 px-3 py-3">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div><p class="text-sm font-bold">{{user.fullName || user.email}}</p><p class="text-xs text-slate-400">{{user.email}} · {{user.role}}</p></div>
-                  <button (click)="toggleUser(user)" [disabled]="user.id === auth.profile()?.id || isManagingUsers()" class="min-h-10 rounded-lg border border-slate-700 px-3 text-xs disabled:opacity-40">{{user.enabled ? 'Deshabilitar' : 'Habilitar'}}</button>
+                  <div class="flex gap-2">
+                    <button type="button" (click)="openEditUser(user)" [disabled]="user.id === auth.profile()?.id || isManagingUsers()" class="min-h-10 rounded-lg border border-slate-700 px-3 text-xs disabled:opacity-40">Editar</button>
+                    <button type="button" (click)="toggleUser(user)" [disabled]="user.id === auth.profile()?.id || isManagingUsers()" class="min-h-10 rounded-lg border border-slate-700 px-3 text-xs disabled:opacity-40">{{user.enabled ? 'Deshabilitar' : 'Habilitar'}}</button>
+                  </div>
                 </div>
                 @if (user.role === 'admin') {
                   <p class="mt-3 text-xs text-emerald-400">Acceso a todos los fundos.</p>
@@ -306,6 +309,33 @@ import { Fundo, HarvestLot, LotAssignment, SupervisorSummary } from '../../domai
             } @empty { <p class="py-4 text-center text-xs text-slate-500">No hay usuarios registrados.</p> }
           </div>
         </section>
+      </div>
+    }
+    @if (editingUser()) {
+      <div class="fixed inset-0 z-[2900] grid place-items-center bg-slate-950/85 p-4 backdrop-blur-sm">
+        <form (submit)="saveUserEdits($event)" class="w-full max-w-md space-y-3 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+          <h2 class="text-lg font-bold">Editar usuario</h2>
+          <label class="block text-xs text-slate-400">Nombre
+            <input [(ngModel)]="editUserName" name="editUserName" required class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">
+          </label>
+          <label class="block text-xs text-slate-400">Correo
+            <input [(ngModel)]="editUserEmail" name="editUserEmail" type="email" required class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">
+          </label>
+          <label class="block text-xs text-slate-400">Rol
+            <select [(ngModel)]="editUserRole" name="editUserRole" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">
+              <option value="supervisor">Supervisor</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </label>
+          <label class="block text-xs text-slate-400">Contraseña temporal (opcional)
+            <input [(ngModel)]="editUserTemporaryPassword" name="editUserTemporaryPassword" type="password" autocomplete="new-password" minlength="8" class="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">
+          </label>
+          <p class="text-xs text-slate-500">Déjala vacía para conservar la contraseña actual. Si la asignas, debe tener al menos 8 caracteres.</p>
+          <div class="flex gap-2">
+            <button type="button" (click)="closeEditUser()" [disabled]="isManagingUsers()" class="min-h-11 flex-1 rounded-lg border border-slate-700 disabled:opacity-40">Cancelar</button>
+            <button type="submit" [disabled]="isManagingUsers()" class="min-h-11 flex-1 rounded-lg bg-emerald-500 font-bold text-slate-950 disabled:opacity-40">{{isManagingUsers() ? 'Guardando…' : 'Guardar cambios'}}</button>
+          </div>
+        </form>
       </div>
     }
     @if (repo.hasLocalFundsToSync()) {
@@ -385,6 +415,7 @@ export class HarvestMapComponent implements AfterViewInit {
   readonly isChangingPassword = signal(false);
   readonly passwordPanel = signal(false);
   readonly adminPanel = signal(false);
+  readonly editingUser = signal<AppProfile | null>(null);
   readonly users = signal<AppProfile[]>([]);
   readonly userFundoPermissions = signal<Record<string, string[]>>({});
   readonly remoteError = signal('');
@@ -397,6 +428,10 @@ export class HarvestMapComponent implements AfterViewInit {
   newUserPassword = '';
   newPassword = '';
   confirmPassword = '';
+  editUserName = '';
+  editUserEmail = '';
+  editUserRole: AppRole = 'supervisor';
+  editUserTemporaryPassword = '';
   newUserRole: 'admin' | 'supervisor' = 'supervisor';
   supervisor = '';
   color = '#22c55e';
@@ -521,6 +556,41 @@ export class HarvestMapComponent implements AfterViewInit {
     await this.loadUsers();
   }
   closeAdminPanel(): void { this.adminPanel.set(false); }
+  openEditUser(user: AppProfile): void {
+    if (!this.auth.isAdmin() || user.id === this.auth.profile()?.id) return;
+    this.editingUser.set(user);
+    this.editUserName = user.fullName;
+    this.editUserEmail = user.email;
+    this.editUserRole = user.role;
+    this.editUserTemporaryPassword = '';
+  }
+  closeEditUser(): void {
+    this.editingUser.set(null);
+    this.editUserTemporaryPassword = '';
+  }
+  async saveUserEdits(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const user = this.editingUser();
+    if (!user || !this.auth.isAdmin()) return;
+    this.isManagingUsers.set(true);
+    try {
+      await this.auth.updateManagedUser({
+        id: user.id,
+        email: this.editUserEmail,
+        fullName: this.editUserName,
+        role: this.editUserRole,
+        ...(this.editUserTemporaryPassword
+          ? { temporaryPassword: this.editUserTemporaryPassword }
+          : {})
+      });
+      this.closeEditUser();
+      await this.loadUsers();
+      this.notify('Usuario actualizado correctamente.');
+    } catch (error) {
+      this.notify(`No se pudo actualizar el usuario: ${this.errorMessage(error)}`);
+      this.isManagingUsers.set(false);
+    }
+  }
   private async loadUsers(): Promise<void> {
     this.isManagingUsers.set(true);
     try {

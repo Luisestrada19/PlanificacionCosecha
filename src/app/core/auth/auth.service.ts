@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import type { User } from '@supabase/supabase-js';
+import { FunctionsHttpError, type User } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase.client';
 
 export type AppRole = 'admin' | 'supervisor';
@@ -66,7 +66,19 @@ export class AuthService {
   async createUser(input: { email:string; password:string; fullName:string; role:'admin'|'supervisor' }): Promise<void> {
     if (!this.isAdmin()) throw new Error('Solo el administrador puede crear usuarios.');
     const { error } = await supabase.functions.invoke('create-team-user', { body: input });
-    if (error) throw error;
+    if (error) await this.throwFunctionError(error);
+  }
+
+  async updateManagedUser(input: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: AppRole;
+    temporaryPassword?: string;
+  }): Promise<void> {
+    if (!this.isAdmin()) throw new Error('Solo el administrador puede editar usuarios.');
+    const { error } = await supabase.functions.invoke('update-team-user', { body: input });
+    if (error) await this.throwFunctionError(error);
   }
 
   async listUsers(): Promise<AppProfile[]> {
@@ -128,6 +140,19 @@ export class AuthService {
 
   private errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'No se pudo completar la autenticación.';
+  }
+
+  private async throwFunctionError(error: Error): Promise<never> {
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = await error.context.clone().json() as { error?: string; message?: string };
+        const message = body.error || body.message;
+        if (message) throw new Error(message);
+      } catch (responseError) {
+        if (responseError instanceof Error && !(responseError instanceof SyntaxError)) throw responseError;
+      }
+    }
+    throw error;
   }
 
   private async loadProfile(user: User): Promise<void> {

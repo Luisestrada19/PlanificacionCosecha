@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "ng serve --host 0.0.0.0",
-    "build": "ng build",
-    "build:pages": "ng build --base-href /PlanificacionCosecha/",
-    "test": "vitest run"
+    "start": "node ./node_modules/@angular/cli/bin/ng.js serve --host 0.0.0.0",
+    "build": "node ./node_modules/@angular/cli/bin/ng.js build",
+    "build:pages": "node ./node_modules/@angular/cli/bin/ng.js build --base-href /PlanificacionCosecha/",
+    "test": "node ./node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
     "@angular/animations": "^20.0.0",
